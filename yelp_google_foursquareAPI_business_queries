@@ -180,7 +180,7 @@ assert FOURSQUARE_CLIENT, "Foursquare Client ID not provided/loaded properly"
 assert FOURSQUARE_SECRET, "Foursquare Client Secret not provided/loaded properly"
 assert GOOGLE_CLIENT, "Google Client ID not provided/loaded properly"
 
-db_path = r'C:\Users\Evan\Desktop\VIA codeathon\via.db'
+db_path = r'path-to-database'
 con = sql.connect(db_path)
 cur = con.cursor()
 
