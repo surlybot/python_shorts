@@ -1,0 +1,35 @@
+# Great-circle distance (great_circle) uses a spherical model of the earth, 
+# using the mean earth radius as defined by the International Union of 
+# Geodesy and Geophysics, (2*a + b)/3 = 6371.0087714150598 kilometers approx 6371.009 km (for WGS-84), 
+# resulting in an error of up to about 0.5%.
+# Vincenty distance (vincenty) uses a more accurate ellipsoidal model of the earth. 
+# This is the default distance formula, and is thus aliased as distance.distance.'''
+
+from geopy.distance import great_circle
+from geopy.distance import vincenty
+
+stopsDistanceVincenty, stopsDistanceGCircle = {}, {}
+
+for i in stops: # stops is my db query results, returns lat/lng pairs of bus stops
+    stopsDistanceVincenty[i[0]] = vincenty(myPoint, (i[2],i[3])).miles
+    stopsDistanceGCircle[i[0]] = great_circle(myPoint, (i[2],i[3])).miles
+    
+topVincenty=sorted(stopsDistanceVincenty, key=stopsDistanceVincenty.get, reverse=False)[:5]
+topGCircle=sorted(stopsDistanceGCircle, key=stopsDistanceGCircle.get, reverse=False)[:5]
+
+print('vincenty results:\n')
+print(topVincenty or 'nothing here')
+for i in topVincenty: print(stopsDistanceVincenty[i])
+
+print('\ngreat circle results:\n')
+print(topGCircle or 'nothing here')   
+for i in topGCircle: 
+    print(stopsDistanceGCircle[i])
+
+# get closest five points to given lat/lng
+stopsDistanceGCircle = {}
+for i in stops:
+    stopsDistanceGCircle[i[0]] = great_circle(myPoint, (i[2],i[3])).miles
+    stopsDistanceGCircle[i[1]] = i[]
+    
+topGCircle=sorted(stopsDistanceGCircle, key=stopsDistanceGCircle.get, reverse=False)[:5]
