@@ -1,0 +1,11 @@
+import googlemaps
+
+client = googlemaps.Client(key='your-api-key')
+
+# get lat/long pair for an address
+forward = client.geocode('255 E Basse Rd Suite #160, San Antonio, TX 78209')
+
+#print(forward)
+#print(forward[0].keys())
+print(forward[0]['geometry']['viewport']['southwest']['lat'],forward[0]['geometry']['viewport']['southwest']['lng'])
+print(forward[0]['geometry']['viewport']['northeast']['lat'],forward[0]['geometry']['viewport']['northeast']['lng'])
