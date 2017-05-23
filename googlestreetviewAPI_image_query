@@ -1,0 +1,18 @@
+# query google streetview api for an image of a given location
+
+import requests
+GOOGLE_STREETVIEW = 'your-api-key'
+
+myPoint = 'lat-lng-pair-to-query' # comma separated str 'lat,lng'
+                                  # also supports 'city-name, state bigraph' (ex, Houston, TX)
+
+param = {
+    'key' : GOOGLE_STREETVIEW,
+    'location' : myPoint,
+    'size' : '400x200',
+    'fov' : 90,
+    'pitch': 0,
+}
+
+street_view = requests.get('https://maps.googleapis.com/maps/api/streetview?parameters', params=param)
+print(street_view.url)
