@@ -1,0 +1,73 @@
+# yelp stuff
+def yelp_query():
+    
+    #API_HOST = 'https://api.yelp.com'
+    #SEARCH_PATH = '/v3/businesses/search'
+    #BUSINESS_PATH = '/v3/businesses/'  # Business ID will come after slash.
+    #TOKEN_PATH = '/oauth2/token'
+    #GRANT_TYPE = 'client_credentials'    
+    
+    YELP_BEARER_TOKEN = ''  # each session has to obtain a bearer token
+    YELP_CLIENT = 'your-client-key'
+    YELP_SECRET = 'your-secret-key'
+
+    if not YELP_BEARER_TOKEN:
+        try:
+            print('Acquring bearer token for Yelp API...')
+
+            url = '{0}{1}'.format('https://api.yelp.com', quote('/oauth2/token'.encode('utf8')))
+            
+            data = urlencode({
+                'client_id': YELP_CLIENT,
+                'client_secret': YELP_SECRET,
+                'grant_type': 'client_credentials'})
+            
+            headers = {'content-type': 'application/x-www-form-urlencoded'}
+            
+            response = requests.request('POST', url, data=data, headers=headers)
+            
+            YELP_BEARER_TOKEN = response.json()['access_token']
+
+        except Exception as error:
+            print('Error obtaining Yelp bearer token...\n')
+            print('Error in func(yelp_query)')
+            return
+    
+    parameters = {
+        'term' : 'breakfast',
+        'location' : '29.497034,-98.466904',
+        'radius' : 5000
+    }
+    
+    # because yelp has to be different in every damn way
+    lat,lng = parameters['location'].split(',')
+    
+    url_params = {
+        'term': parameters['term'].replace(' ', '+'),
+        'latitude': lat,
+        'longitude': lng,
+        'limit': 50,
+        'radius': parameters['radius']} 
+    
+    url_req = '{0}{1}'.format('https://api.yelp.com', quote('/v3/businesses/search'.encode('utf8')))
+    headers_req = {'Authorization': 'Bearer {}'.format(YELP_BEARER_TOKEN)}
+    
+    #print(u'Querying {0} ...'.format(url_req))
+    response_req = requests.request('GET', url_req, headers=headers_req, params=url_params)
+
+    api_response = response_req.json()
+               
+    businesses = api_response.get('businesses')
+
+    if not businesses:
+        print(u'No businesses matching {0} near {1} found.'.format(parameters['term'], "{},{}".format(url_params['latitude'],url_params['longitude'])))
+        return
+    
+    results = []
+    for business in businesses:
+        tmp = []
+        loc = "{},{}".format(business['coordinates']['latitude'],business['coordinates']['longitude'])
+        tmp.append([business['name'], loc, business['id'], business['rating'], 'YELP'])
+        results.extend(tmp)
+    
+    return results
