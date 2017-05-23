@@ -1,0 +1,37 @@
+# querty foursquare API for venues + lat/long + ratings
+# https://developer.foursquare.com/docs/venues/explore
+# easier to read json response at https://developer.foursquare.com/docs/responses/venue
+
+import foursquare
+
+def foursquare_query():
+
+    FOURSQUARE_CLIENT = 'your-client-key'
+    FOURSQUARE_SECRET = 'your-secret-key'
+    
+    client = foursquare.Foursquare(client_id=FOURSQUARE_CLIENT, client_secret=FOURSQUARE_SECRET)
+
+    parameters = {
+        'term' : 'breakfast',
+        'location' : '29.497034,-98.466904',
+        'radius' : 5000
+    }
+
+    query_result = client.venues.search(
+        params={'query': parameters['term'], 
+                'll' : parameters['location'], 
+                'radius' : parameters['radius']})
+    
+    results = []
+    for key in query_result.keys():
+        for i in range(len(query_result[key])):
+            tmp = []
+            mkstr_latlng = "{},{}".format(query_result[key][i]['location']['lat'], query_result[key][i]['location']['lng'])
+            if 'rating' in query_result[key][i].keys():                    
+                tmp.extend([query_result[key][i]['name'], mkstr_latlng, query_result[key][i]['id'], query_result[key][i]['rating'], 'FOURSQUARE'])
+            else:
+                tmp.extend([query_result[key][i]['name'], mkstr_latlng, query_result[key][i]['id'], 'NO_RATING_PROVIDED', 'FOURSQUARE'])
+
+            results.append(tmp)
+                
+    return results
