@@ -1,0 +1,255 @@
+from __future__ import print_function
+import sys
+import json
+import sqlite3 as sql
+import requests
+
+try:
+    # For Python 3.0 and later
+    from urllib.error import HTTPError
+    from urllib.parse import quote
+    from urllib.parse import urlencode
+    
+except ImportError:
+    # Fall back to Python 2's urllib2 and urllib
+    from urllib2 import HTTPError
+    from urllib import quote
+    from urllib import urlencode
+
+import foursquare
+from googleplaces import GooglePlaces, types, lang # https://github.com/slimkrazy/python-google-places
+import gmplot #https://github.com/vgm64/gmplot
+
+# #
+FOURSQUARE_CLIENT = 'your-client-key'
+FOURSQUARE_SECRET = 'your-secret-key'
+
+# #
+GOOGLE_CLIENT = 'your-client-key'
+GOOGLE_STREETVIEW = 'your-client-key '
+
+# #
+YELP_CLIENT = 'your-client-key'
+YELP_SECRET = 'your-secret-key'
+YELP_BEARER_TOKEN = ''
+
+#######################################
+# FOURSQUARE 
+## https://developer.foursquare.com/docs/venues/explore
+# easier to read json response at https://developer.foursquare.com/docs/responses/venue
+
+# GOOGLE
+## # https://github.com/slimkrazy/python-google-places
+
+## YELP
+# https://www.yelp.ca/developers/documentation/v3/authentication
+
+# google stuff
+def google_query(parameters):
+    
+    #http://py-googlemaps.sourceforge.net/
+    
+    global GOOGLE_CLIENT
+    
+    client = GooglePlaces(GOOGLE_CLIENT)
+    
+    query_result = client.nearby_search(
+                   location = parameters['location'], 
+                   keyword = parameters['term'],
+                   radius = parameters['radius'], 
+                   types = [types.TYPE_FOOD]) #types.{} referenced the wrapper lib, not the api docs
+   
+    results = []
+    for place in query_result.places:
+        tmp = []
+        place.get_details() # rating reqs an extra api call...thnx google
+        mkstr_latlng = "{},{}".format(place.geo_location['lat'], place.geo_location['lng'])
+        mkstr_id = "{}".format(place.place_id) # STILL RETURNING 'DECIMAL ('4')' SOMETIMES -- FIX
+        tmp.extend([place.name, mkstr_latlng, mkstr_id, place.rating, 'GOOGLE'])
+        results.append(tmp)
+        
+    return results
+    
+# foursquare stuff
+def foursquare_query(parameters):
+    
+    global FOURSQUARE_CLIENT
+    global FOURSQUARE_SECRET
+    
+    client = foursquare.Foursquare(client_id=FOURSQUARE_CLIENT, client_secret=FOURSQUARE_SECRET)
+    
+    query_result = client.venues.search(
+        params={'query': parameters['term'], 
+                'll' : parameters['location'], 
+                'radius' : parameters['radius']})
+    
+    results = []
+    for key in query_result.keys():
+        for i in range(len(query_result[key])):
+            tmp = []
+            mkstr_latlng = "{},{}".format(query_result[key][i]['location']['lat'], query_result[key][i]['location']['lng'])
+            if 'rating' in query_result[key][i].keys():                    
+                tmp.extend([query_result[key][i]['name'], mkstr_latlng, query_result[key][i]['id'], query_result[key][i]['rating'], 'FOURSQUARE'])
+            else:
+                tmp.extend([query_result[key][i]['name'], mkstr_latlng, query_result[key][i]['id'], 'NO_RATING_PROVIDED', 'FOURSQUARE'])
+
+            results.append(tmp)
+                
+    return results
+    
+  # yelp stuff
+def yelp_query(parameters):
+    
+    API_HOST = 'https://api.yelp.com'
+    SEARCH_PATH = '/v3/businesses/search'
+    BUSINESS_PATH = '/v3/businesses/'  # Business ID will come after slash.
+    TOKEN_PATH = '/oauth2/token'
+    GRANT_TYPE = 'client_credentials'    
+    
+    global YELP_BEARER_TOKEN
+    global YELP_CLIENT
+    global YELP_SECRET
+
+    if not YELP_BEARER_TOKEN:
+        try:
+            print('Acquring bearer token for Yelp API...')
+
+            url = '{0}{1}'.format('https://api.yelp.com', quote('/oauth2/token'.encode('utf8')))
+            
+            data = urlencode({
+                'client_id': YELP_CLIENT,
+                'client_secret': YELP_SECRET,
+                'grant_type': 'client_credentials'})
+            
+            headers = {'content-type': 'application/x-www-form-urlencoded'}
+            
+            response = requests.request('POST', url, data=data, headers=headers)
+            
+            YELP_BEARER_TOKEN = response.json()['access_token']
+
+        except Exception as error:
+            print('Error obtaining Yelp bearer token...\n')
+            print('Error in func(yelp_query)')
+            return
+    
+    # because yelp has to be different in every damn way
+    lat,lng = parameters['location'].split(',')
+    
+    url_params = {
+        'term': parameters['term'].replace(' ', '+'),
+        'latitude': lat,
+        'longitude': lng,
+        'limit': 50,
+        'radius': parameters['radius']} 
+    
+    url_req = '{0}{1}'.format('https://api.yelp.com', quote('/v3/businesses/search'.encode('utf8')))
+    headers_req = {'Authorization': 'Bearer {}'.format(YELP_BEARER_TOKEN)}
+    
+    #print(u'Querying {0} ...'.format(url_req))
+    response_req = requests.request('GET', url_req, headers=headers_req, params=url_params)
+
+    api_response = response_req.json()
+               
+    businesses = api_response.get('businesses')
+
+    if not businesses:
+        print(u'No businesses matching {0} near {1} found.'.format(parameters['term'], "{},{}".format(url_params['latitude'],url_params['longitude'])))
+        return
+    
+    results = []
+    for business in businesses:
+        tmp = []
+        loc = "{},{}".format(business['coordinates']['latitude'],business['coordinates']['longitude'])
+        tmp.append([business['name'], loc, business['id'], business['rating'], 'YELP'])
+        results.extend(tmp)
+    
+    return results
+    
+# main stuff
+
+global FOURSQUARE_CLIENT
+global FOURSQUARE_SECRET
+global YELP_BEARER_TOKEN
+global YELP_CLIENT
+global YELP_SECRET
+global GOOGLE_CLIENT
+
+assert YELP_CLIENT, "Yelp Client ID not provided/loaded properly"
+assert YELP_SECRET, "Yelp Client Secret not provided/loaded properly"
+assert FOURSQUARE_CLIENT, "Foursquare Client ID not provided/loaded properly"
+assert FOURSQUARE_SECRET, "Foursquare Client Secret not provided/loaded properly"
+assert GOOGLE_CLIENT, "Google Client ID not provided/loaded properly"
+
+db_path = r'C:\Users\Evan\Desktop\VIA codeathon\via.db'
+con = sql.connect(db_path)
+cur = con.cursor()
+
+# QUERYING THE DATABASE TO LINK STOP NAMES AND THEIR GEO LOC
+stopsInfo = cur.execute("SELECT stop_id, stop_name, stop_lat, stop_lon FROM stops")
+
+# create a dictionary with stop id as key, name lat long as values
+info = {}
+for k in stopsInfo:
+    info[k[0]]=(k[1],k[2],k[3])
+
+locations = []
+#stopId = input('Enter the stop ID you want to search')
+#radius = input('Search Radius (meters): ')
+
+all_lats = []
+all_lngs = []
+
+for results in [google_results, foursquare_results, yelp_results]:
+    for business in results:
+        lt, lg = business[1].split(',')
+        lt = float(lt)
+        lg = float(lg)
+        all_lats.append(lt)
+        all_lngs.append(lg)
+
+if (len(google_results) + len(foursquare_results) + len(yelp_results)) != len(all_lats): print("INCONSISTENCY WITH LL SPLIT")
+#print(all_lats[:5])
+#print(all_lngs[:5])
+#print(len(all_lats), len(all_lngs))
+#lats = [float(item[2]) for item in events_mat]
+#lons = [float(item[3]) for item in events_mat]
+
+stopId = '27653'# hard coded test ID
+radius = '500' # hard coded test distance, in meters
+term = 'parking' # hard coded test term
+
+requestedStop = info[stopId] 
+stopName = requestedStop[0]
+ll = "{},{}".format(requestedStop[1],requestedStop[2])
+
+locations.append(ll)
+
+venues, businesses, places = [], [], []
+
+parameters = {
+    'term' : 'breakfast',
+    'location' : '29.497034,-98.466904',
+    'radius' : 5000
+}
+
+print("Searching for {} within {}m of {} -- stop_id# {}\n".format(parameters['term'],parameters['radius'], stopName, stopId))
+
+print('Please wait...\n')
+
+# each var is results of queries formatted: name, geo, id, rating, api_name(google|yelp|foursquare)
+google_results = google_query(parameters) 
+foursquare_results = foursquare_query(parameters)
+yelp_results = yelp_query(parameters)
+
+print("{} results found on Google Places for {}".format(len(google_results), parameters['term']))
+print("{} results found on Foursquare for {}".format(len(foursquare_results), parameters['term']))
+print("{} results found on Yelp for {}".format(len(yelp_results), parameters['term']))
+
+print('--------------------------------------------------------------------------------------')
+
+print("Google Top 5 Results: \n")
+for result in google_results[:5]: print(result)
+print("\nFoursquare Top 5 Results: \n")
+for result in foursquare_results[:5]: print(result)
+print("\nYelp Top 5 Results: \n")
+for result in yelp_results[:5]: print(result)
