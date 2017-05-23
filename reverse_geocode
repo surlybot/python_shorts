@@ -1,0 +1,9 @@
+import googlemaps
+
+myPoint = (29.49356,-98.47978)
+
+client = googlemaps.Client(key='your-api-key')
+reverse = client.reverse_geocode(myPoint)
+
+#print(reverse) # uncomment to see all the components returned
+print(reverse[0]['formatted_address'])
