@@ -9,6 +9,9 @@ loc = {}
 loc['lat'] = '29.497034'
 loc['lng'] = '-98.466904'
 
+# reqd params: key, location, radius, rankby=distance(radius cannot be given if rankby is used)
+# opt params: keyword, name, type: https://developers.google.com/places/web-service/supported_types
+
 parameters = {
     'term' : 'breakfast',
     'lat_lng' : loc,
