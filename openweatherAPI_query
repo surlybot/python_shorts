@@ -1,0 +1,24 @@
+# query openweather.com's api
+
+# note: they will block your requests if you do > 1 request per 10 minutes
+
+import requests
+
+OPEN_WEATHER = 'your-api-key'
+
+#weather_response = requests.get('api.openweathermap.org/data/2.5/weather?lat=29&lon=-98')
+#weather_response = requests.get('http:api.openweathermap.org/data/2.5/weather?q=San+Antonio')
+weather_response = requests.get('http://api.openweathermap.org/data/2.5/weather?zip=78250,us&APPID=0cc47e6bb683a3cd41482871bf06c878')
+w = weather_response.json()
+
+weather_desc = w['weather'][0]['description']
+humidity = w['main']['humidity']
+temp_current = int(w['main']['temp'] - 200)
+temp_max = int(w['main']['temp_max'] - 200)
+temp_min = int(w['main']['temp_min'] - 200)
+
+print(weather_desc)
+print(humidity)
+print(temp_current)
+print(temp_max)
+print(temp_min)
