@@ -1,0 +1,34 @@
+# googleplaces API query - specifically getting a photo, ratings, and business names
+
+from googleplaces import GooglePlaces, types, lang
+
+GOOGLE_CLIENT = 'your-api-key'
+client = GooglePlaces(GOOGLE_CLIENT)
+
+loc = {}
+loc['lat'] = '29.497034'
+loc['lng'] = '-98.466904'
+
+parameters = {
+    'term' : 'breakfast',
+    'lat_lng' : loc,
+    'radius' : 5000
+}
+
+query_result = client.nearby_search(
+               lat_lng = parameters['lat_lng'], 
+               keyword = parameters['term'],
+               radius = parameters['radius'], 
+               types = [types.TYPE_FOOD]) #types.{} referenced the wrapper lib, not the api docs
+               
+for place in query_result.places:
+    print(place.name)
+    print(place.geo_location)
+    
+    place.get_details() # The following method has to make a further API call.
+    print(place.rating)
+
+    for photo in place.photos:
+        # 'maxheight' or 'maxwidth' is required
+        photo.get(maxheight=500, maxwidth=500)
+        print(photo.url or 'NO PIC')
